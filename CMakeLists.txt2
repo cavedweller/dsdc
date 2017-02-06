@@ -1,0 +1,18 @@
+# Copyright OkCupid 2016
+
+include(${CMAKE_SOURCE_DIR}/CMakeHelpers.cmake)
+
+set(SRC "")
+
+set(TAMED_SRC "")
+
+set(HEADERS "")
+
+PreprocessTamedFiles(SRC HEADERS "${TAMED_SRC}")
+add_custom_target(dsdc_headers DEPENDS ${HEADERS})
+
+include_directories(${GLOBAL_INCLUDES}
+		    ${CMAKE_CURRENT_SOURCE_DIR}/
+		    ${CMAKE_CURRENT_BINARY_DIR}/)
+
+add_library(dsdc SHARED ${SRC})
