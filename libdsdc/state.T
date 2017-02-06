@@ -7,124 +7,119 @@
 //-----------------------------------------------------------------------
 
 void
-dsdc_system_state_cache_t::change_lock_server_to (aclnt_wrap_t *nl)
-{
+dsdc_system_state_cache_t::change_lock_server_to(aclnt_wrap_t* nl) {
     if (_lock_server) {
-        if (show_debug (DSDC_DBG_LOW))
+        if (show_debug(DSDC_DBG_LOW))
             warn << "deactivating old lock server: "
-            << _lock_server->remote_peer_id () << "\n";
+                 << _lock_server->remote_peer_id() << "\n";
         delete _lock_server;
     }
 
     _lock_server = nl;
 
-    if (_lock_server && show_debug (DSDC_DBG_LOW))
-        warn << "activating new lock server: "
-        << _lock_server->remote_peer_id () << "\n";
+    if (_lock_server && show_debug(DSDC_DBG_LOW))
+        warn << "activating new lock server: " << _lock_server->remote_peer_id()
+             << "\n";
 }
 
 //-----------------------------------------------------------------------
 
 void
-dsdc_system_state_cache_t::refresh_lock_server ()
-{
+dsdc_system_state_cache_t::refresh_lock_server() {
     ptr<aclnt_wrap_t> nl;
     if (_system_state.lock_server) {
-        if ((nl = new_lockserver_wrap (_system_state.lock_server->hostname,
-                                       _system_state.lock_server->port))) {
+        if ((nl = new_lockserver_wrap(
+                 _system_state.lock_server->hostname,
+                 _system_state.lock_server->port))) {
             if (!_lock_server ||
-                nl->remote_peer_id () != _lock_server->remote_peer_id ())
-                change_lock_server_to (nl);
+                nl->remote_peer_id() != _lock_server->remote_peer_id())
+                change_lock_server_to(nl);
         }
     } else if (_lock_server) {
         // the lock server went down
-        change_lock_server_to (NULL);
+        change_lock_server_to(NULL);
     }
 }
 
 //-----------------------------------------------------------------------
 
 void
-dsdc_system_state_cache_t::clear_all ()
-{
-    if (_system_state.slaves.size ()) {
-        dsdc_getstate_res_t res (true);
-        handle_refresh (res);
+dsdc_system_state_cache_t::clear_all() {
+    if (_system_state.slaves.size()) {
+        dsdc_getstate_res_t res(true);
+        handle_refresh(res);
     }
 }
 
 //-----------------------------------------------------------------------
 
 void
-dsdc_system_state_cache_t::handle_refresh (const dsdc_getstate_res_t &res)
-{
+dsdc_system_state_cache_t::handle_refresh(const dsdc_getstate_res_t& res) {
     if (res.needupdate) {
         _system_state = *res.state;
-        sha1_hashxdr (_system_state_hash.base (), _system_state);
+        sha1_hashxdr(_system_state_hash.base(), _system_state);
 
-        pre_construct ();
-        construct_tree ();
-        refresh_lock_server ();
-        post_construct ();
+        pre_construct();
+        construct_tree();
+        refresh_lock_server();
+        post_construct();
 
-        clean_cache ();
-    } 
+        clean_cache();
+    }
 }
 
 //-----------------------------------------------------------------------
 
 void
-dsdc_system_state_cache_t::construct_tree ()
-{
-    _hash_ring.deleteall_correct ();
-    for (size_t i = 0; i < _system_state.slaves.size (); i++) {
-        const dsdcx_slave_t &sl = _system_state.slaves[i];
-        ptr<aclnt_wrap_t> w = new_wrap (sl.hostname, sl.port);
-        for (size_t j = 0; j < sl.keys.size (); j++) {
-            _hash_ring.insert (New dsdc_ring_node_t (w, sl.keys[j]));
+dsdc_system_state_cache_t::construct_tree() {
+    _hash_ring.deleteall_correct();
+    for (size_t i = 0; i < _system_state.slaves.size(); i++) {
+        const dsdcx_slave_t& sl = _system_state.slaves[i];
+        ptr<aclnt_wrap_t> w = new_wrap(sl.hostname, sl.port);
+        for (size_t j = 0; j < sl.keys.size(); j++) {
+            _hash_ring.insert(New dsdc_ring_node_t(w, sl.keys[j]));
         }
     }
 }
 
 //-----------------------------------------------------------------------
 
-dsdc_system_state_cache_t::dsdc_system_state_cache_t ()
-        : _n_updates_since_clean (0),
-          _destroyed (New refcounted<bool> (false)),
-          _lock_server (NULL),
-          _loop_running (false)
-{
-    memset (_system_state_hash.base (), 0, _system_state_hash.size ());
+dsdc_system_state_cache_t::dsdc_system_state_cache_t()
+    : _n_updates_since_clean(0), _destroyed(New refcounted<bool>(false)),
+      _lock_server(NULL), _loop_running(false) {
+    memset(_system_state_hash.base(), 0, _system_state_hash.size());
 }
 
 //-----------------------------------------------------------------------
 
-dsdc_system_state_cache_t::~dsdc_system_state_cache_t ()
-{
+dsdc_system_state_cache_t::~dsdc_system_state_cache_t() {
     *_destroyed = true;
-    _hash_ring.deleteall_correct ();
+    _hash_ring.deleteall_correct();
 }
 
 //-----------------------------------------------------------------------
 
 tamed void
-dsdc_system_state_cache_t::refresh_loop (bool try_first)
-{
+dsdc_system_state_cache_t::refresh_loop(bool try_first) {
     tvars {
         ptr<bool> df;
-        bool first (true);
+        bool first(true);
     }
     df = _destroyed;
 
     if (!_loop_running) {
-        _loop_running = true; 
+        _loop_running = true;
 
         while (!*df) {
             if (!first || try_first) {
-                twait { refresh (mkevent ()); } 
+                twait {
+                    refresh(mkevent());
+                }
             }
             first = false;
-            twait { delaycb (dsdcs_getstate_interval, 0, mkevent ()); }
+            twait {
+                delaycb(dsdcs_getstate_interval, 0, mkevent());
+            }
         }
     }
 }
@@ -132,8 +127,7 @@ dsdc_system_state_cache_t::refresh_loop (bool try_first)
 //-----------------------------------------------------------------------
 
 tamed void
-dsdc_system_state_cache_t::refresh (evv_t::ptr ev)
-{
+dsdc_system_state_cache_t::refresh(evv_t::ptr ev) {
     tvars {
         clnt_stat err;
         ptr<aclnt> c;
@@ -142,32 +136,31 @@ dsdc_system_state_cache_t::refresh (evv_t::ptr ev)
     }
 
     df = _destroyed;
-    if (!(c = get_primary ())) {
+    if (!(c = get_primary())) {
         warn << "Cannot find any masters that are alive!\n";
-        if (clean_on_all_masters_dead ()) {
-            clear_all ();
+        if (clean_on_all_masters_dead()) {
+            clear_all();
         }
     } else {
-        twait { 
-            RPC::dsdc_prog_1::dsdc_getstate
-                (c, _system_state_hash, &res, mkevent (err));
+        twait {
+            RPC::dsdc_prog_1::dsdc_getstate(
+                c, _system_state_hash, &res, mkevent(err));
         }
         if (err) {
             warn << "DSDC_GETSTATE failure: " << err << "\n";
         } else if (!*df) {
-            handle_refresh (res);
+            handle_refresh(res);
         }
     }
-    if (ev) ev->trigger ();
+    if (ev)
+        ev->trigger();
 }
 
 //-----------------------------------------------------------------------
 
 str
-dsdc_system_state_cache_t::fingerprint (str *p) const
-{
-    return _hash_ring.fingerprint (p);
+dsdc_system_state_cache_t::fingerprint(str* p) const {
+    return _hash_ring.fingerprint(p);
 }
 
 //-----------------------------------------------------------------------
-

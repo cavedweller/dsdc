@@ -10,7 +10,7 @@
 #include "rxx.h"
 
 #ifndef __STDC_FORMAT_MACROS
-# define __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
 #endif
 #include <inttypes.h>
 
@@ -18,33 +18,37 @@
 
 typedef fscache::file_id_t file_id_t;
 
-
 //-----------------------------------------------------------------------
 
-file_id_t mkfid (u_int32_t id) 
-{
-    strbuf n ("file-%" PRIx32 , id);
-    return fscache::file_id_t (n, id);
+file_id_t
+mkfid(u_int32_t id) {
+    strbuf n("file-%" PRIx32, id);
+    return fscache::file_id_t(n, id);
 }
 
 //-----------------------------------------------------------------------
 
 class cmd_t {
-public:
-    cmd_t () : _op (OP_NONE) {}
+  public:
+    cmd_t() : _op(OP_NONE) {}
 
-    typedef enum { OP_NONE = 0,
-                   OP_CREATE = 1,
-                   OP_DELETE = 2,
-                   OP_LOAD = 3,
-                   OP_ERROR = 4 } op_t;
-    
-    static op_t str2cmd (str s);
-    file_id_t filename () const { return mkfid (_args[0]); }
+    typedef enum {
+        OP_NONE = 0,
+        OP_CREATE = 1,
+        OP_DELETE = 2,
+        OP_LOAD = 3,
+        OP_ERROR = 4
+    } op_t;
 
-    enum { N_ARGS = 3 } ;
-    bool parse (str s);
-    static ptr<cmd_t> alloc (str s);
+    static op_t str2cmd(str s);
+    file_id_t
+    filename() const {
+        return mkfid(_args[0]);
+    }
+
+    enum { N_ARGS = 3 };
+    bool parse(str s);
+    static ptr<cmd_t> alloc(str s);
     op_t _op;
     vec<u_int32_t> _args;
 };
@@ -52,15 +56,21 @@ public:
 //-----------------------------------------------------------------------
 
 cmd_t::op_t
-cmd_t::str2cmd (str s)
-{
+cmd_t::str2cmd(str s) {
     op_t ret = OP_NONE;
-    if (s.len ()) {
-        switch (tolower (s[0])) {
-        case 'c': ret = OP_CREATE; break;
-        case 'd': ret = OP_DELETE; break;
-        case 'l': ret = OP_LOAD; break;
-        default: ret = OP_ERROR;
+    if (s.len()) {
+        switch (tolower(s[0])) {
+        case 'c':
+            ret = OP_CREATE;
+            break;
+        case 'd':
+            ret = OP_DELETE;
+            break;
+        case 'l':
+            ret = OP_LOAD;
+            break;
+        default:
+            ret = OP_ERROR;
         }
     }
     return ret;
@@ -69,12 +79,11 @@ cmd_t::str2cmd (str s)
 //-----------------------------------------------------------------------
 
 ptr<cmd_t>
-cmd_t::alloc (str s)
-{
+cmd_t::alloc(str s) {
     ptr<cmd_t> ret;
     if (s) {
-        ret = New refcounted<cmd_t> ();
-        if (!ret->parse (s)) {
+        ret = New refcounted<cmd_t>();
+        if (!ret->parse(s)) {
             ret = NULL;
         }
     }
@@ -84,29 +93,27 @@ cmd_t::alloc (str s)
 //-----------------------------------------------------------------------
 
 bool
-cmd_t::parse (str s)
-{
-    assert (s);
-    static rxx x ("\\s+");
+cmd_t::parse(str s) {
+    assert(s);
+    static rxx x("\\s+");
     vec<str> v;
-    split (&v, x, s);
+    split(&v, x, s);
     bool ret = false;
     bool convert_ok = true;
-    
 
-    if (v.size () == 0) {
+    if (v.size() == 0) {
         // EOF
-    } else if (v.size () < 2) {
+    } else if (v.size() < 2) {
         warn << "XX need at least 2 args, but got '" << s << "'\n";
-    } else if (v.size () > 4) {
+    } else if (v.size() > 4) {
         warn << "XX too many arguments in command: " << s << "\n";
     } else {
-        _args.setsize (v.size () - 1);
-        if ((_op = str2cmd (v[0])) == OP_NONE || _op == OP_ERROR) {
+        _args.setsize(v.size() - 1);
+        if ((_op = str2cmd(v[0])) == OP_NONE || _op == OP_ERROR) {
             warn << "XX bad command: " << v[0] << "\n";
         } else {
-            for (size_t i = 1; i < v.size (); i++) {
-                if (!convertint (v[i], &_args[i-1])) {
+            for (size_t i = 1; i < v.size(); i++) {
+                if (!convertint(v[i], &_args[i - 1])) {
                     warn << "Could not convert to int: " << v[i] << "\n";
                     convert_ok = false;
                 }
@@ -122,38 +129,31 @@ cmd_t::parse (str s)
 //-----------------------------------------------------------------------
 
 class tester_t {
-public:
-    tester_t (fscache::cfg_t *cfg, int c, bool verbose, size_t mfs)
-        : _cfg (cfg), 
-          _fsc (cfg),
-          _concur (c),
-          _rand_data_size (64 * 1024 * 1024),
-          _min_filesz (128),
-          _max_filesz (mfs),
-          _filesz_range (_max_filesz - _min_filesz),
-          _nfiles_low_watermark (100),
-          _filename_len (20),
-          _verbose (verbose) {}
+  public:
+    tester_t(fscache::cfg_t* cfg, int c, bool verbose, size_t mfs)
+        : _cfg(cfg), _fsc(cfg), _concur(c), _rand_data_size(64 * 1024 * 1024),
+          _min_filesz(128), _max_filesz(mfs),
+          _filesz_range(_max_filesz - _min_filesz), _nfiles_low_watermark(100),
+          _filename_len(20), _verbose(verbose) {}
 
-    void run (CLOSURE);
+    void run(CLOSURE);
 
-private:
-    void run1 (evv_t ev, CLOSURE);
-    void initialize_random_area ();
-    str rand_reuse_file () const;
-    str random_data (u_int32_t uid) const;
-    str random_filename () const;
-    void do_cmd (ptr<cmd_t> cmd, evv_t ev);
+  private:
+    void run1(evv_t ev, CLOSURE);
+    void initialize_random_area();
+    str rand_reuse_file() const;
+    str random_data(u_int32_t uid) const;
+    str random_filename() const;
+    void do_cmd(ptr<cmd_t> cmd, evv_t ev);
 
-    void do_create (ptr<cmd_t> cmd, evv_t ev, CLOSURE);
-    void do_load (ptr<cmd_t> cmd, evv_t ev, CLOSURE);
-    void do_delete (ptr<cmd_t> cmd, evv_t ev, CLOSURE);
-    str fullpath (const file_id_t &fid) const;
-    void get_next_cmd (bool *eof, event<ptr<cmd_t> >::ref ev, CLOSURE);
-    void report (str op, file_id_t fid, int rc) const;
+    void do_create(ptr<cmd_t> cmd, evv_t ev, CLOSURE);
+    void do_load(ptr<cmd_t> cmd, evv_t ev, CLOSURE);
+    void do_delete(ptr<cmd_t> cmd, evv_t ev, CLOSURE);
+    str fullpath(const file_id_t& fid) const;
+    void get_next_cmd(bool* eof, event<ptr<cmd_t>>::ref ev, CLOSURE);
+    void report(str op, file_id_t fid, int rc) const;
 
-
-    fscache::cfg_t *_cfg;
+    fscache::cfg_t* _cfg;
     fscache::engine_t _fsc;
     size_t _concur;
     vec<str> _files;
@@ -168,30 +168,27 @@ private:
 //-----------------------------------------------------------------------
 
 str
-tester_t::fullpath (const file_id_t &fid) const
-{
-    str s = fid.fullpath (_cfg->n_levels ());
-    strbuf b ("%s (%" PRIu32 ")", s.cstr (), fid.get_index ());
+tester_t::fullpath(const file_id_t& fid) const {
+    str s = fid.fullpath(_cfg->n_levels());
+    strbuf b("%s (%" PRIu32 ")", s.cstr(), fid.get_index());
     return b;
 }
 
 //-----------------------------------------------------------------------
 
 str
-tester_t::random_filename () const
-{
-    size_t offset = random_getword () % (_rand_data_size - _filename_len);
-    return armor32 (_rand_data.cstr () + offset, _filename_len);
+tester_t::random_filename() const {
+    size_t offset = random_getword() % (_rand_data_size - _filename_len);
+    return armor32(_rand_data.cstr() + offset, _filename_len);
 }
 
 //-----------------------------------------------------------------------
 
 void
-tester_t::initialize_random_area ()
-{
+tester_t::initialize_random_area() {
     warn << "+ initializing " << _rand_data_size << " bytes of random data\n";
-    mstr dat (_rand_data_size);
-    rnd.getbytes (dat.cstr (), _rand_data_size);
+    mstr dat(_rand_data_size);
+    rnd.getbytes(dat.cstr(), _rand_data_size);
     _rand_data = dat;
     warn << "- done!\n";
 }
@@ -199,171 +196,181 @@ tester_t::initialize_random_area ()
 //-----------------------------------------------------------------------
 
 tamed void
-tester_t::get_next_cmd (bool *eof, event<ptr<cmd_t> >::ref ev)
-{
+tester_t::get_next_cmd(bool* eof, event<ptr<cmd_t>>::ref ev) {
     tvars {
         str line;
         int err;
         ptr<cmd_t> cmd;
     }
-    twait { ain->readline (mkevent (line, err)); }
-    if (err) { 
+    twait {
+        ain->readline(mkevent(line, err));
+    }
+    if (err) {
         *eof = true;
     } else if (!line || line == ".") {
         *eof = true;
     } else {
-        cmd = cmd_t::alloc (line);
+        cmd = cmd_t::alloc(line);
     }
-    ev->trigger (cmd);
+    ev->trigger(cmd);
 }
 
 //-----------------------------------------------------------------------
 
 void
-tester_t::report (str op, file_id_t fid, int rc) const
-{
+tester_t::report(str op, file_id_t fid, int rc) const {
     str s;
     if (rc != 0 || _verbose) {
-        s = fullpath (fid);
+        s = fullpath(fid);
     }
 
     if (rc != 0) {
         errno = -rc;
-        warn ("XX %s on file '%s' failed: %m\n", op.cstr(), s.cstr ());
+        warn("XX %s on file '%s' failed: %m\n", op.cstr(), s.cstr());
     }
 
     if (_verbose) {
-        warn ("II %s on file '%s' -> %d\n", op.cstr (), s.cstr (), rc);
+        warn("II %s on file '%s' -> %d\n", op.cstr(), s.cstr(), rc);
     }
 }
 
 //-----------------------------------------------------------------------
 
 tamed void
-tester_t::do_load (ptr<cmd_t> cmd, evv_t ev)
-{
+tester_t::do_load(ptr<cmd_t> cmd, evv_t ev) {
     tvars {
-        file_id_t fid (cmd->filename ());
+        file_id_t fid(cmd->filename());
         time_t t;
         int rc;
         str dat;
     }
 
-    twait { _fsc.load (fid, mkevent (rc, t, dat)); }
-    report ("load", fid, rc);
-    ev->trigger ();
+    twait {
+        _fsc.load(fid, mkevent(rc, t, dat));
+    }
+    report("load", fid, rc);
+    ev->trigger();
 }
 
 //-----------------------------------------------------------------------
 
 str
-tester_t::random_data (u_int32_t id) const
-{
+tester_t::random_data(u_int32_t id) const {
     size_t len = id % _filesz_range + _min_filesz;
     size_t offset = id % (_rand_data_size - len);
-    return str (_rand_data.cstr () + offset, len);
+    return str(_rand_data.cstr() + offset, len);
 }
 
 //-----------------------------------------------------------------------
 
 tamed void
-tester_t::do_delete (ptr<cmd_t> cmd, evv_t ev)
-{
+tester_t::do_delete(ptr<cmd_t> cmd, evv_t ev) {
     tvars {
-        file_id_t fid (cmd->filename ());
+        file_id_t fid(cmd->filename());
         int rc;
     }
-    
-    twait { _fsc.remove (fid, mkevent (rc)); }
-    report ("delete", fid, rc);
-    ev->trigger ();
+
+    twait {
+        _fsc.remove(fid, mkevent(rc));
+    }
+    report("delete", fid, rc);
+    ev->trigger();
 }
 
 //-----------------------------------------------------------------------
 
 tamed void
-tester_t::do_create (ptr<cmd_t> cmd, evv_t ev)
-{
+tester_t::do_create(ptr<cmd_t> cmd, evv_t ev) {
     tvars {
-        file_id_t fid (cmd->filename ());
-        time_t t (sfs_get_timenow ());
+        file_id_t fid(cmd->filename());
+        time_t t(sfs_get_timenow());
         int rc;
         str dat;
     }
-    if (cmd->_args.size () < 2) {
-        warn ("XX wrong number of args for create: %zu\n", cmd->_args.size ());
+    if (cmd->_args.size() < 2) {
+        warn("XX wrong number of args for create: %zu\n", cmd->_args.size());
         rc = -EINVAL;
     } else {
-        dat = random_data (cmd->_args[1]);
-        twait { _fsc.store (fid, t, dat, mkevent (rc)); }
+        dat = random_data(cmd->_args[1]);
+        twait {
+            _fsc.store(fid, t, dat, mkevent(rc));
+        }
     }
-    report ("store", fid, rc);
-    ev->trigger ();
+    report("store", fid, rc);
+    ev->trigger();
 }
 
 //-----------------------------------------------------------------------
 
 void
-tester_t::do_cmd (ptr<cmd_t> cmd, evv_t ev)
-{
+tester_t::do_cmd(ptr<cmd_t> cmd, evv_t ev) {
     switch (cmd->_op) {
-    case cmd_t::OP_CREATE: do_create (cmd, ev); break;
-    case cmd_t::OP_DELETE: do_delete (cmd, ev); break;
-    case cmd_t::OP_LOAD:   do_load (cmd, ev); break;
-    default: 
-        {
-            warn << "XX unhandled opcode\n";
-            ev->trigger ();
-        }
+    case cmd_t::OP_CREATE:
+        do_create(cmd, ev);
+        break;
+    case cmd_t::OP_DELETE:
+        do_delete(cmd, ev);
+        break;
+    case cmd_t::OP_LOAD:
+        do_load(cmd, ev);
+        break;
+    default: {
+        warn << "XX unhandled opcode\n";
+        ev->trigger();
+    }
     }
 }
 
 //-----------------------------------------------------------------------
 
 tamed void
-tester_t::run ()
-{
+tester_t::run() {
     tvars {
-        rendezvous_t<> rv (__FILE__, __LINE__);
-        size_t n_out (0);
+        rendezvous_t<> rv(__FILE__, __LINE__);
+        size_t n_out(0);
         ptr<cmd_t> cmd;
-        bool eof (false);
+        bool eof(false);
         bool ok;
     }
 
-    twait { _fsc.init (mkevent (ok)); }
+    twait {
+        _fsc.init(mkevent(ok));
+    }
 
     if (!ok) {
         warn << "failed to initialize fscache engine\n";
-        exit (0);
+        exit(0);
     }
 
-    initialize_random_area ();
+    initialize_random_area();
 
     while (!eof || n_out > 0) {
         if (n_out > _concur || eof) {
-            twait (rv);
+            twait(rv);
             n_out--;
         } else {
-            twait { get_next_cmd (&eof, mkevent (cmd)); }
+            twait {
+                get_next_cmd(&eof, mkevent(cmd));
+            }
 
             if (cmd) {
-               do_cmd (cmd, mkevent (rv)); 
-               n_out++;
+                do_cmd(cmd, mkevent(rv));
+                n_out++;
             }
             // return to main loop to get timer events
-            twait { delaycb (0, 0, mkevent ()); }
+            twait {
+                delaycb(0, 0, mkevent());
+            }
         }
     }
 
-    exit (0);
+    exit(0);
 }
 
 //-----------------------------------------------------------------------
 
 static void
-usage ()
-{
+usage() {
     warn << "usage: " << progname << " [-tsdvHAS] [-n<levels>] "
          << "[-N<threads>] [-c<concurrency>] [-w<wait>] [-D<n-dig>] <root>\n"
          << "\n"
@@ -379,21 +386,20 @@ usage ()
          << "     -A   turn off atomic writes\n"
          << "     -S   turn on fsync's\n"
          << "     -D   specify the number of digits in each dirname\n";
-        exit (1);
+    exit(1);
 }
 
 //-----------------------------------------------------------------------
 
 int
-main (int argc, char *argv[])
-{
+main(int argc, char* argv[]) {
     int ch;
-    tester_t *tester;
+    tester_t* tester;
     int concurrency = 20;
     bool verbose = false;
     size_t mfs = 128 * 1024;
 
-    setprogname (argv[0]);
+    setprogname(argv[0]);
     fscache::cfg_t cfg;
 
     cfg._n_levels = 2;
@@ -403,13 +409,13 @@ main (int argc, char *argv[])
 
     str remote_str;
 
-    while ((ch = getopt (argc, argv, "SAtsdr:n:N:vc:m:hw:D:")) != -1) {
+    while ((ch = getopt(argc, argv, "SAtsdr:n:N:vc:m:hw:D:")) != -1) {
         switch (ch) {
         case 'r':
             remote_str = optarg;
             break;
         case 'D':
-            if (!convertint (optarg, &cfg._n_dig)) {
+            if (!convertint(optarg, &cfg._n_dig)) {
                 warn << "bad -D argument: " << optarg << "\n";
                 break;
             }
@@ -428,53 +434,53 @@ main (int argc, char *argv[])
             break;
             break;
         case 'n':
-            if (!convertint (optarg, &cfg._n_levels)) {
+            if (!convertint(optarg, &cfg._n_levels)) {
                 warn << "bad -n argument: " << optarg << "\n";
-                usage ();
+                usage();
             }
             break;
         case 'N':
-            if (!convertint (optarg, &cfg._n_aiods)) {
+            if (!convertint(optarg, &cfg._n_aiods)) {
                 warn << "bad -N argument: " << optarg << "\n";
-                usage ();
+                usage();
             }
             break;
         case 'd':
-            cfg.set_debug_flag (fscache::DEBUG_OP_TRACE);
+            cfg.set_debug_flag(fscache::DEBUG_OP_TRACE);
             break;
         case 'c':
-            if (!convertint (optarg, &concurrency)) {
+            if (!convertint(optarg, &concurrency)) {
                 warn << "bad -c argument: " << optarg << "\n";
-                usage ();
+                usage();
             }
             break;
         case 'h':
             cfg._backend = fscache::BACKEND_HYBRID;
             break;
         case 'w':
-            if (!convertint (optarg, &cfg._rollover_time)) {
+            if (!convertint(optarg, &cfg._rollover_time)) {
                 warn << "bad -w argument: " << optarg << "\n";
-                usage ();
+                usage();
             }
             break;
         case 'v':
             verbose = true;
             break;
         case 'm':
-            if (!convertint (optarg, &mfs)) {
+            if (!convertint(optarg, &mfs)) {
                 warn << "bad -m argument: " << optarg << "\n";
-                usage ();
+                usage();
             }
             break;
         default:
-            usage ();
+            usage();
             break;
         }
     }
 
-    if (!cfg.parse_aiod2_remotes (remote_str)) {
+    if (!cfg.parse_aiod2_remotes(remote_str)) {
         warn << "bad remote -r argument: " << remote_str << "\n";
-        usage ();
+        usage();
     }
 
     argc -= optind;
@@ -482,14 +488,14 @@ main (int argc, char *argv[])
 
     if (argc != 1) {
         warn << "1 arguments expected (fs root); got " << argc << "\n";
-        usage ();
+        usage();
     }
     cfg._root = argv[0];
-    
-    tester = New tester_t (&cfg, concurrency, verbose, mfs);
-    tester->run ();
 
-    amain ();
+    tester = New tester_t(&cfg, concurrency, verbose, mfs);
+    tester->run();
+
+    amain();
 }
 
 //-----------------------------------------------------------------------

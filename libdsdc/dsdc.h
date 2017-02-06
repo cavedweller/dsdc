@@ -6,7 +6,7 @@
 #define _DSDC_SMARTCLI_H_
 
 // when we hit a major version it should go to 100000
-#define DSDC_VERSION    25000
+#define DSDC_VERSION 25000
 
 #include "async.h"
 #include "arpc.h"
@@ -32,29 +32,41 @@ typedef dsdc::annotation::base_t annotation_t;
  * we will maintain for the smart client to connect to
  */
 class dsdci_srv_t : public aclnt_wrap_t, public virtual refcount {
-public:
-    dsdci_srv_t (const str &h, int p) ;
-    virtual ~dsdci_srv_t ();
+  public:
+    dsdci_srv_t(const str& h, int p);
+    virtual ~dsdci_srv_t();
 
-    const str &key () const { return _key; }
-    void connect (cbb cb, CLOSURE);
+    const str&
+    key() const {
+        return _key;
+    }
+    void connect(cbb cb, CLOSURE);
 
-    void hold () { refcount_inc (); }
-    void release () { _orphaned = true; refcount_dec (); }
+    void
+    hold() {
+        refcount_inc();
+    }
+    void
+    release() {
+        _orphaned = true;
+        refcount_dec();
+    }
 
-    void hit_eof (ptr<bool> df); // call this when there is an EOF
+    void hit_eof(ptr<bool> df); // call this when there is an EOF
 
     /**
      * some descendents will want to reestablish as soon as communication
      * is cut off (such as masters!)
      */
-    virtual void eof_hook () {};
+    virtual void eof_hook(){};
 
     /**
      * say if it's a master or slave connection (for logging)
      */
-    virtual str typ () const { return "slave"; }
-
+    virtual str
+    typ() const {
+        return "slave";
+    }
 
     /**
      * for aclnt_wrap virtual interface.  note that this interface is
@@ -67,7 +79,10 @@ public:
      * @ret the RPC client, if one was active. NULL if not
      *
      */
-    ptr<aclnt> get_aclnt () { return _cli; }
+    ptr<aclnt>
+    get_aclnt() {
+        return _cli;
+    }
 
     /**
      * call this function to get a new aclnt, so that you can make
@@ -75,31 +90,34 @@ public:
      *
      * @param cb callback to call with the resulting ptr<aclnt>, or NULL on err
      */
-    void get_aclnt (aclnt_cb_t cb, CLOSURE);
-    bool is_dead () ;
+    void get_aclnt(aclnt_cb_t cb, CLOSURE);
+    bool is_dead();
 
     /**
      * a remote peer is identified by a <hostname>:<port>
      */
-    const str &remote_peer_id () const { return _key; }
+    const str&
+    remote_peer_id() const {
+        return _key;
+    }
 
-    typedef enum { CONN_NONE,
-                   CONN_FAST,
-                   CONN_SLOW } conn_state_t;
+    typedef enum { CONN_NONE, CONN_FAST, CONN_SLOW } conn_state_t;
 
-protected:
+  protected:
     void trigger_waiters();
 
-public:
+  public:
     const str _key;
-private:
+
+  private:
     const str _hostname;
     const int _port;
     int _fd;
 
     ptr<axprt> _x;
     ptr<aclnt> _cli;
-protected:
+
+  protected:
     ptr<bool> _destroyed;
     conn_state_t _conn_state;
     vec<evv_t> _waiters;
@@ -107,8 +125,8 @@ protected:
 };
 
 class dsdci_retry_srv_t : public dsdci_srv_t {
-public:
-    dsdci_retry_srv_t(const str& h, int p) : dsdci_srv_t(h,p) { }
+  public:
+    dsdci_retry_srv_t(const str& h, int p) : dsdci_srv_t(h, p) {}
     void eof_hook();
     void retry_loop(CLOSURE);
 };
@@ -120,10 +138,13 @@ public:
 //   the ring so that lookups and inserts are routed appropriately
 //
 class dsdci_master_t : public dsdci_retry_srv_t {
-public:
-    dsdci_master_t (const str &h, int p) : dsdci_retry_srv_t (h,p) {}
+  public:
+    dsdci_master_t(const str& h, int p) : dsdci_retry_srv_t(h, p) {}
 
-    str typ () const { return "master"; }
+    str
+    typ() const {
+        return "master";
+    }
 
     tailq_entry<dsdci_master_t> _lnk;
     ihash_entry<dsdci_master_t> _hlnk;
@@ -136,8 +157,8 @@ public:
 //   to reconnect every time.
 //
 class dsdci_slave_t : public dsdci_srv_t {
-public:
-    dsdci_slave_t (const str &h, int p) : dsdci_srv_t (h, p) {}
+  public:
+    dsdci_slave_t(const str& h, int p) : dsdci_srv_t(h, p) {}
     list_entry<dsdci_slave_t> _lnk;
     ihash_entry<dsdci_slave_t> _hlnk;
 };
@@ -148,29 +169,39 @@ public:
 //  keep persistent connection open to the dsdc proxy if it exists
 //
 class dsdci_proxy_t : public dsdci_retry_srv_t {
-public:
-    dsdci_proxy_t(const str& h, int p) : dsdci_retry_srv_t(h,p) { }
-    str typ() const { return "proxy"; }
+  public:
+    dsdci_proxy_t(const str& h, int p) : dsdci_retry_srv_t(h, p) {}
+    str
+    typ() const {
+        return "proxy";
+    }
 };
 
-template<> struct keyfn<dsdci_master_t, str> {
-    keyfn () {}
-    const str &operator () (dsdci_master_t *i) const { return i->key (); }
+template <>
+struct keyfn<dsdci_master_t, str> {
+    keyfn() {}
+    const str&
+    operator()(dsdci_master_t* i) const {
+        return i->key();
+    }
 };
 
-template<> struct keyfn<dsdci_slave_t, str> {
-    keyfn () {}
-    const str &operator () (dsdci_slave_t *i) const { return i->key (); }
+template <>
+struct keyfn<dsdci_slave_t, str> {
+    keyfn() {}
+    const str&
+    operator()(dsdci_slave_t* i) const {
+        return i->key();
+    }
 };
 
 // callback type for returning from get() calls below
-typedef callback<void, ptr<dsdc_get_res_t> >::ref dsdc_get_res_cb_t;
-typedef callback<void, ptr<dsdc_mget_res_t> >::ref dsdc_mget_res_cb_t;
-typedef callback<void, ptr<dsdc_lock_acquire_res_t> >::ref
-dsdc_lock_acquire_res_cb_t;
+typedef callback<void, ptr<dsdc_get_res_t>>::ref dsdc_get_res_cb_t;
+typedef callback<void, ptr<dsdc_mget_res_t>>::ref dsdc_mget_res_cb_t;
+typedef callback<void, ptr<dsdc_lock_acquire_res_t>>::ref
+    dsdc_lock_acquire_res_cb_t;
 
 class dsdc_smartcli_t;
-
 
 /**
  * A convenience class for simplifying puts/gets to and from the
@@ -182,11 +213,10 @@ class dsdc_smartcli_t;
  *
  * This is the recommended way to access DSDC.
  */
-template<class K, class V>
+template <class K, class V>
 class dsdc_iface_t {
-public:
-    dsdc_iface_t (dsdc_smartcli_t *c, int t=-1) :
-            _cli (c), time_to_expire(t) {}
+  public:
+    dsdc_iface_t(dsdc_smartcli_t* c, int t = -1) : _cli(c), time_to_expire(t) {}
 
     /**
      * Get an object from DSDC.
@@ -195,11 +225,12 @@ public:
      * @param cb the callback to call once its gotten (or error)
      * @param safe if on, route request through the master
      */
-    void get (const K &k,
-              typename callback<void, dsdc_res_t, ptr<V> >::ref cb,
-              bool safe = false,
-              const annotation_t *a = NULL,
-              dsdc_cksum_t *cksum = NULL);
+    void
+    get(const K& k,
+        typename callback<void, dsdc_res_t, ptr<V>>::ref cb,
+        bool safe = false,
+        const annotation_t* a = NULL,
+        dsdc_cksum_t* cksum = NULL);
 
     /**
      * Put an object into DSDC.
@@ -209,10 +240,13 @@ public:
      * @param cb get called back at cb with a status code
      * @param safe if on, route PUT through the master.
      */
-    void put (const K &k, const V &obj, cbi::ptr cb = NULL,
-              bool safe = false,
-              const annotation_t *a = NULL,
-              const dsdc_cksum_t *cks = NULL);
+    void
+    put(const K& k,
+        const V& obj,
+        cbi::ptr cb = NULL,
+        bool safe = false,
+        const annotation_t* a = NULL,
+        const dsdc_cksum_t* cks = NULL);
 
     /**
      * Remove an object from DSDC
@@ -221,8 +255,11 @@ public:
      * @param cb get called back at cb with a status code
      * @param safe if on, route remove through the master.
      */
-    void remove (const K &k, cbi::ptr cb = NULL, bool safe = false,
-                 const annotation_t *a = NULL);
+    void remove(
+        const K& k,
+        cbi::ptr cb = NULL,
+        bool safe = false,
+        const annotation_t* a = NULL);
 
     /**
      * @brief Acquire a lock from the DSDC lock server
@@ -273,9 +310,13 @@ public:
      * @param block Whether to block or just fail without the lock.
      * @param safe if on, route request through the master.
      */
-    void lock_acquire (const K &k, dsdc_lock_acquire_res_cb_t cb,
-                       u_int timeout = 0, bool writer = true,
-                       bool block = true, bool safe = false);
+    void lock_acquire(
+        const K& k,
+        dsdc_lock_acquire_res_cb_t cb,
+        u_int timeout = 0,
+        bool writer = true,
+        bool block = true,
+        bool safe = false);
 
     /**
      * @brief Release a lock already held.
@@ -290,8 +331,8 @@ public:
      * @param cb get called back at cb with a status code.
      * @param safe if on, route release through the master.
      */
-    void lock_release (const K &k, dsdcl_id_t id, cbi::ptr cb = NULL,
-                       bool safe = false);
+    void lock_release(
+        const K& k, dsdcl_id_t id, cbi::ptr cb = NULL, bool safe = false);
 
     /*
      * @brief figure out slave the key maps to
@@ -300,14 +341,14 @@ public:
      *
      * @param key the key in question
      */
-    str which_slave (const K &k);
+    str which_slave(const K& k);
 
-private:
-    dsdc_smartcli_t *_cli;
+  private:
+    dsdc_smartcli_t* _cli;
     int time_to_expire;
 };
 
-#define DSDC_RETRY_ON_STARTUP          0x1
+#define DSDC_RETRY_ON_STARTUP 0x1
 
 //
 // dsdc smart client:
@@ -319,34 +360,37 @@ private:
 //   the API to this class is with the 6 or so public functions below.
 //
 class dsdc_smartcli_t : public dsdc_system_state_cache_t {
-public:
-    dsdc_smartcli_t (u_int o = 0, u_int to = dsdc_rpc_timeout)
-            : _curr_master (NULL), _opts (o), _timeout (to) {}
-    ~dsdc_smartcli_t ();
+  public:
+    dsdc_smartcli_t(u_int o = 0, u_int to = dsdc_rpc_timeout)
+        : _curr_master(NULL), _opts(o), _timeout(to) {}
+    ~dsdc_smartcli_t();
 
     // adds a master from a string only, in the form
     // <hostname>:<port>
-    bool add_master (const str &m);
+    bool add_master(const str& m);
 
     // add a new master server to the smart client.
     // returns true if the insert succeeded (if the master is not
     // a duplicate) and false otherwise.
-    bool add_master (const str &hostname, int port);
+    bool add_master(const str& hostname, int port);
 
     // add a new dsdc proxy server, if this is specified, then all requests
-    // coming into this smart client will go through it 
+    // coming into this smart client will go through it
     bool add_proxy(const str& hostname, int port = -1);
 
     // initialize the smart client; get a callback with a "true" result
     // as soon as one master connection succeeds, or with a "false" result
     // after all connections fail.
-    void init (evb_t::ptr ev, CLOSURE);
+    void init(evb_t::ptr ev, CLOSURE);
 
     // If all masters are dead, we shouldn't keep the stale version
     // of the ring around.  NOTE that slaves do somethind else -- they
     // do keep around the old cached state, so that way they don't all
     // dump their data!
-    bool clean_on_all_masters_dead () const { return true; }
+    bool
+    clean_on_all_masters_dead() const {
+        return true;
+    }
 
     //
     // put/get/remove objects into the ring.
@@ -360,70 +404,98 @@ public:
     //   the safe flag, and rely on the smart client's knowledge
     //   of the cache state.
     //
-    void put (ptr<dsdc_put_arg_t> arg, cbi::ptr cb = NULL, bool safe = false);
-    void put (ptr<dsdc_put4_arg_t> arg, cbi::ptr cb = NULL, bool safe = false);
-    void put (ptr<dsdc_put3_arg_t> arg, cbi::ptr cb = NULL, bool safe = false);
-    void get (ptr<dsdc_key_t> key, dsdc_get_res_cb_t cb,
-              bool safe = false, int time_to_expire=-1,
-              const annotation_t *a = NULL, CLOSURE);
-    void remove (ptr<dsdc_key_t> key, cbi::ptr cb = NULL, bool safe = false);
-    void remove (ptr<dsdc_remove3_arg_t> arg, cbi::ptr cb = NULL,
-                 bool safe = false);
-    void mget (ptr<vec<dsdc_key_t> > keys, dsdc_mget_res_cb_t cb);
-    void lock_acquire (ptr<dsdc_lock_acquire_arg_t> arg,
-                       dsdc_lock_acquire_res_cb_t cb, bool safe = false);
-    void lock_release (ptr<dsdc_lock_release_arg_t> arg,
-                       cbi::ptr cb = NULL, bool safe = false, CLOSURE);
+    void put(ptr<dsdc_put_arg_t> arg, cbi::ptr cb = NULL, bool safe = false);
+    void put(ptr<dsdc_put4_arg_t> arg, cbi::ptr cb = NULL, bool safe = false);
+    void put(ptr<dsdc_put3_arg_t> arg, cbi::ptr cb = NULL, bool safe = false);
+    void
+    get(ptr<dsdc_key_t> key,
+        dsdc_get_res_cb_t cb,
+        bool safe = false,
+        int time_to_expire = -1,
+        const annotation_t* a = NULL,
+        CLOSURE);
+    void remove(ptr<dsdc_key_t> key, cbi::ptr cb = NULL, bool safe = false);
+    void
+    remove(ptr<dsdc_remove3_arg_t> arg, cbi::ptr cb = NULL, bool safe = false);
+    void mget(ptr<vec<dsdc_key_t>> keys, dsdc_mget_res_cb_t cb);
+    void lock_acquire(
+        ptr<dsdc_lock_acquire_arg_t> arg,
+        dsdc_lock_acquire_res_cb_t cb,
+        bool safe = false);
+    void lock_release(
+        ptr<dsdc_lock_release_arg_t> arg,
+        cbi::ptr cb = NULL,
+        bool safe = false,
+        CLOSURE);
 
     // slightly more automated versions of the above; call xdr2str/str2xdr
     // automatically, and therefore less code for the app designer
-    template<class T> void put2 (const dsdc_key_t &k, const T &obj,
-                                 cbi::ptr cb = NULL, bool safe = false,
-                                 const annotation_t *a = NULL,
-                                 const dsdc_cksum_t *cks = NULL);
+    template <class T>
+    void put2(
+        const dsdc_key_t& k,
+        const T& obj,
+        cbi::ptr cb = NULL,
+        bool safe = false,
+        const annotation_t* a = NULL,
+        const dsdc_cksum_t* cks = NULL);
 
-    template<class T, class A> dsdc_res_t 
-    put2_helper (ptr<A> arg, const T &obj, cbi::ptr cb);
+    template <class T, class A>
+    dsdc_res_t put2_helper(ptr<A> arg, const T& obj, cbi::ptr cb);
 
-    template<class T>
-    void get2 (ptr<dsdc_key_t> k,
-               typename callback<void, dsdc_res_t, ptr<T> >::ref cb,
-               bool safe = false, int time_to_expire= -1,
-               const annotation_t *a = NULL,
-               dsdc_cksum_t *cksum = NULL);
+    template <class T>
+    void get2(
+        ptr<dsdc_key_t> k,
+        typename callback<void, dsdc_res_t, ptr<T>>::ref cb,
+        bool safe = false,
+        int time_to_expire = -1,
+        const annotation_t* a = NULL,
+        dsdc_cksum_t* cksum = NULL);
 
     // even more convenient version of the above!
-    template<class K, class V> void
-    put3 (const K &k, const V &obj, cbi::ptr cb = NULL,
-          bool safe = false,
-          const annotation_t *a = NULL,
-          const dsdc_cksum_t *cksum = NULL);
+    template <class K, class V>
+    void put3(
+        const K& k,
+        const V& obj,
+        cbi::ptr cb = NULL,
+        bool safe = false,
+        const annotation_t* a = NULL,
+        const dsdc_cksum_t* cksum = NULL);
 
-    template<class K, class V> void
-    get3 (const K &k, typename callback<void, dsdc_res_t, ptr<V> >::ref cb,
-          bool safe = false, int time_to_expire = -1,
-          const annotation_t *a = NULL,
-          dsdc_cksum_t *cksum = NULL);
+    template <class K, class V>
+    void get3(
+        const K& k,
+        typename callback<void, dsdc_res_t, ptr<V>>::ref cb,
+        bool safe = false,
+        int time_to_expire = -1,
+        const annotation_t* a = NULL,
+        dsdc_cksum_t* cksum = NULL);
 
-    template<class K> void
-    remove3 (const K &k, cbi::ptr cb = NULL, bool safe = false,
-             const annotation_t *a = NULL);
+    template <class K>
+    void remove3(
+        const K& k,
+        cbi::ptr cb = NULL,
+        bool safe = false,
+        const annotation_t* a = NULL);
 
-    template<class K> str
-    which_slave3 (const K &k);
+    template <class K>
+    str which_slave3(const K& k);
 
-    template<class K> void
-    lock_acquire3 (const K &k, dsdc_lock_acquire_res_cb_t cb, u_int timeout,
-                   bool writer = true, bool block = true, bool safe = false);
+    template <class K>
+    void lock_acquire3(
+        const K& k,
+        dsdc_lock_acquire_res_cb_t cb,
+        u_int timeout,
+        bool writer = true,
+        bool block = true,
+        bool safe = false);
 
-    template<class K> void
-    lock_release3 (const K &k, dsdcl_id_t id, cbi::ptr cb = NULL,
-                   bool safe = false);
+    template <class K>
+    void lock_release3(
+        const K& k, dsdcl_id_t id, cbi::ptr cb = NULL, bool safe = false);
 
-    str which_slave (const dsdc_key_t &k);
+    str which_slave(const dsdc_key_t& k);
 
-    static bool obj_too_big (const dsdc_obj_t &obj);
-
+    static bool obj_too_big(const dsdc_obj_t& obj);
 
     /**
      * create a templated interface to this dsdc, which will spare you
@@ -432,31 +504,34 @@ public:
      *
      * @return An interface object.
      */
-    template<class K, class O>
-    ptr<dsdc_iface_t<K,O> >
-    make_interface (int time_to_expire=-1) {
-        return New refcounted<dsdc_iface_t<K,O> > (this, time_to_expire);
+    template <class K, class O>
+    ptr<dsdc_iface_t<K, O>>
+    make_interface(int time_to_expire = -1) {
+        return New refcounted<dsdc_iface_t<K, O>>(this, time_to_expire);
     }
 
-protected:
+  protected:
     // calls either with a timeout or no, depending on the value set
     // for '_timeout'
-    void rpc_call (ptr<aclnt> cli,
-                   u_int32_t procno, const void *in, void *out, aclnt_cb cb);
+    void rpc_call(
+        ptr<aclnt> cli,
+        u_int32_t procno,
+        const void* in,
+        void* out,
+        aclnt_cb cb);
 
     // fulfill the virtual interface of dsdc_system_cache_t
-    ptr<aclnt> get_primary ();
-    ptr<aclnt_wrap_t> new_wrap (const str &h, int p);
-    ptr<aclnt_wrap_t> new_lockserver_wrap (const str &h, int p);
+    ptr<aclnt> get_primary();
+    ptr<aclnt_wrap_t> new_wrap(const str& h, int p);
+    ptr<aclnt_wrap_t> new_lockserver_wrap(const str& h, int p);
 
-    void pre_construct ();
-    void post_construct ();
+    void pre_construct();
+    void post_construct();
 
-    void acquire_cb_1 (ptr<dsdc_lock_acquire_arg_t> arg,
-                       dsdc_lock_acquire_res_cb_t cb,
-                       ptr<aclnt> cli);
-
-  
+    void acquire_cb_1(
+        ptr<dsdc_lock_acquire_arg_t> arg,
+        dsdc_lock_acquire_res_cb_t cb,
+        ptr<aclnt> cli);
 
     //---------------------------------------------------------------------
     // change cache code
@@ -464,16 +539,21 @@ protected:
     // cc_t - temporary object useful for changing the cache by
     // issuing updates or deletes. see the next 4 functions
     // for where it's used.  should not be used anywhere else
-    template<class T>
+    template <class T>
     struct cc_t {
-        cc_t () {}
-        cc_t (const dsdc_key_t &k, ptr<T> a, int p, cbi::ptr c)
-                : key (k), arg (a), proc (p), cb (c), 
-		  res (New refcounted<int> ()) {}
+        cc_t() {}
+        cc_t(const dsdc_key_t& k, ptr<T> a, int p, cbi::ptr c)
+            : key(k), arg(a), proc(p), cb(c), res(New refcounted<int>()) {}
 
-        ~cc_t () { if (cb) (*cb) (*res); }
+        ~cc_t() {
+            if (cb)
+                (*cb)(*res);
+        }
 
-        void set_res (int i) { *res = i; }
+        void
+        set_res(int i) {
+            *res = i;
+        }
 
         dsdc_key_t key;
         ptr<T> arg;
@@ -483,12 +563,15 @@ protected:
         ptr<int> res;
     };
 
-    template<class T> void
-    change_cache (const dsdc_key_t &k, ptr<T> arg, int, cbi::ptr, bool);
+    template <class T>
+    void change_cache(const dsdc_key_t& k, ptr<T> arg, int, cbi::ptr, bool);
 
-    template<class T> void change_cache (ptr<cc_t<T> > cc, bool safe);
-    template<class T> void change_cache_cb_2 (ptr<cc_t<T> > cc, clnt_stat err);
-    template<class T> void change_cache_cb_1 (ptr<cc_t<T> > cc, ptr<aclnt> cli);
+    template <class T>
+    void change_cache(ptr<cc_t<T>> cc, bool safe);
+    template <class T>
+    void change_cache_cb_2(ptr<cc_t<T>> cc, clnt_stat err);
+    template <class T>
+    void change_cache_cb_1(ptr<cc_t<T>> cc, ptr<aclnt> cli);
 
     //
     // end change cache code
@@ -502,9 +585,9 @@ protected:
 
     // keep trying to connect to the master if it didn't work at first!
     // trigger 0 for "OK", 1 for "first to complete" and -1 for "fail"
-    void master_connect (dsdci_master_t *m, evi_t ev, CLOSURE);
+    void master_connect(dsdci_master_t* m, evi_t ev, CLOSURE);
 
-    void proxy_connect (dsdci_proxy_t *m, evi_t ev, CLOSURE);
+    void proxy_connect(dsdci_proxy_t* m, evi_t ev, CLOSURE);
 
     ptr<dsdci_proxy_t> get_proxy();
 
@@ -516,9 +599,8 @@ protected:
     // end init code
     //-----------------------------------------------------------------------
 
-
-protected:
-    dsdci_master_t *_curr_master;
+  protected:
+    dsdci_master_t* _curr_master;
 
     tailq<dsdci_master_t, &dsdci_master_t::_lnk> _masters;
     fhash<str, dsdci_master_t, &dsdci_master_t::_hlnk> _masters_hash;
@@ -527,7 +609,7 @@ protected:
     fhash<str, dsdci_slave_t, &dsdci_slave_t::_hlnk> _slaves_hash;
     bhash<str> _slaves_hash_tmp;
 
-    vec< ptr<dsdci_proxy_t> > _proxies;
+    vec<ptr<dsdci_proxy_t>> _proxies;
 
     u_int _opts;
     u_int _timeout;
@@ -540,26 +622,26 @@ protected:
 //
 
 // give an XDR object, find its key
-template<class T> ptr<dsdc_key_t>
-mkkey_ptr (const T &obj)
-{
-    ptr<dsdc_key_t> ret = New refcounted<dsdc_key_t> ();
-    mkkey (ret, obj);
+template <class T>
+ptr<dsdc_key_t>
+mkkey_ptr(const T& obj) {
+    ptr<dsdc_key_t> ret = New refcounted<dsdc_key_t>();
+    mkkey(ret, obj);
     return ret;
 }
 
-template<class T> dsdc_key_t
-mkkey (const T &obj)
-{
+template <class T>
+dsdc_key_t
+mkkey(const T& obj) {
     dsdc_key_t ret;
-    mkkey (&ret, obj);
+    mkkey(&ret, obj);
     return ret;
 }
 
-template<class T> void
-mkkey (dsdc_key_t *k, const T &obj)
-{
-    sha1_hashxdr (k->base (), obj);
+template <class T>
+void
+mkkey(dsdc_key_t* k, const T& obj) {
+    sha1_hashxdr(k->base(), obj);
 }
 
 //
@@ -569,54 +651,57 @@ mkkey (dsdc_key_t *k, const T &obj)
 //-----------------------------------------------------------------------
 // dsdc_smartcli_t templated function implementation
 //
-template<class T> void
-dsdc_smartcli_t::change_cache (const dsdc_key_t &k, ptr<T> arg,
-                               int proc, cbi::ptr cb, bool safe)
-{
-    change_cache<T> (New refcounted<cc_t<T> > (k, arg, proc, cb), safe);
+template <class T>
+void
+dsdc_smartcli_t::change_cache(
+    const dsdc_key_t& k, ptr<T> arg, int proc, cbi::ptr cb, bool safe) {
+    change_cache<T>(New refcounted<cc_t<T>>(k, arg, proc, cb), safe);
 }
 
-template<class T> void
-dsdc_smartcli_t::change_cache_cb_2 (ptr<cc_t<T> > cc, clnt_stat err)
-{
+template <class T>
+void
+dsdc_smartcli_t::change_cache_cb_2(ptr<cc_t<T>> cc, clnt_stat err) {
     if (err) {
-        if (show_debug (DSDC_DBG_LOW)) {
+        if (show_debug(DSDC_DBG_LOW)) {
             warn << "RPC error in proc=" << cc->proc << ": " << err << "\n";
         }
-        cc->set_res (DSDC_RPC_ERROR);
+        cc->set_res(DSDC_RPC_ERROR);
     }
 }
 
-template<class T> void
-dsdc_smartcli_t::change_cache_cb_1 (ptr<cc_t<T> > cc, ptr<aclnt> cli)
-{
+template <class T>
+void
+dsdc_smartcli_t::change_cache_cb_1(ptr<cc_t<T>> cc, ptr<aclnt> cli) {
     if (!cli) {
-        cc->set_res (DSDC_NONODE);
+        cc->set_res(DSDC_NONODE);
         return;
     }
 
-    rpc_call (cli, cc->proc, cc->arg, cc->res,
-              wrap (this, &dsdc_smartcli_t::change_cache_cb_2<T>, cc));
+    rpc_call(
+        cli,
+        cc->proc,
+        cc->arg,
+        cc->res,
+        wrap(this, &dsdc_smartcli_t::change_cache_cb_2<T>, cc));
 }
 
-template<class T> void
-dsdc_smartcli_t::change_cache (ptr<cc_t<T> > cc, bool safe)
-{
+template <class T>
+void
+dsdc_smartcli_t::change_cache(ptr<cc_t<T>> cc, bool safe) {
     ptr<dsdci_proxy_t> prx;
     if (safe) {
-        change_cache_cb_1 (cc, get_primary ());
+        change_cache_cb_1(cc, get_primary());
     } else if (_proxies.size() && (prx = get_proxy())) {
-        prx->get_aclnt(wrap(this, 
-                            &dsdc_smartcli_t::change_cache_cb_1<T>, cc));
+        prx->get_aclnt(wrap(this, &dsdc_smartcli_t::change_cache_cb_1<T>, cc));
     } else {
 
-        dsdc_ring_node_t *n = _hash_ring.successor (cc->key);
+        dsdc_ring_node_t* n = _hash_ring.successor(cc->key);
         if (!n) {
-            cc->set_res (DSDC_NONODE);
+            cc->set_res(DSDC_NONODE);
             return;
         }
-        n->get_aclnt_wrap ()
-        ->get_aclnt (wrap (this, &dsdc_smartcli_t::change_cache_cb_1<T>, cc));
+        n->get_aclnt_wrap()->get_aclnt(
+            wrap(this, &dsdc_smartcli_t::change_cache_cb_1<T>, cc));
     }
 }
 
@@ -626,16 +711,16 @@ dsdc_smartcli_t::change_cache (ptr<cc_t<T> > cc, bool safe)
 
 //-----------------------------------------------------------------------
 
-template<class T, class A> dsdc_res_t 
-dsdc_smartcli_t::put2_helper (ptr<A> arg, const T &obj, cbi::ptr cb)
-{
+template <class T, class A>
+dsdc_res_t
+dsdc_smartcli_t::put2_helper(ptr<A> arg, const T& obj, cbi::ptr cb) {
     dsdc_res_t err = DSDC_OK;
-    if (!xdr2bytes (arg->obj, obj)) {
+    if (!xdr2bytes(arg->obj, obj)) {
         err = DSDC_ERRENCODE;
-    } else if (obj_too_big (arg->obj)) {
+    } else if (obj_too_big(arg->obj)) {
         err = DSDC_TOO_BIG;
     } else {
-        put (arg, cb, false);
+        put(arg, cb, false);
         err = DSDC_OK;
     }
     return err;
@@ -643,31 +728,33 @@ dsdc_smartcli_t::put2_helper (ptr<A> arg, const T &obj, cbi::ptr cb)
 
 //-----------------------------------------------------------------------
 
-
-template<class T> void
-dsdc_smartcli_t::put2 (const dsdc_key_t &k, const T &obj,
-                       cbi::ptr cb, bool safe,
-                       const annotation_t *a,
-                       const dsdc_cksum_t *ck)
-{
+template <class T>
+void
+dsdc_smartcli_t::put2(
+    const dsdc_key_t& k,
+    const T& obj,
+    cbi::ptr cb,
+    bool safe,
+    const annotation_t* a,
+    const dsdc_cksum_t* ck) {
     dsdc_res_t res = DSDC_OK;
     if (ck) {
-        ptr<dsdc_put4_arg_t> arg4 = New refcounted<dsdc_put4_arg_t> ();
+        ptr<dsdc_put4_arg_t> arg4 = New refcounted<dsdc_put4_arg_t>();
         arg4->key = k;
-        annotation_t::to_xdr (a, &arg4->annotation);
-        arg4->checksum.alloc ();
+        annotation_t::to_xdr(a, &arg4->annotation);
+        arg4->checksum.alloc();
         *arg4->checksum = *ck;
-        res = put2_helper (arg4, obj, cb);
+        res = put2_helper(arg4, obj, cb);
     } else if (a) {
-        ptr<dsdc_put3_arg_t> arg3 = New refcounted<dsdc_put3_arg_t> ();
+        ptr<dsdc_put3_arg_t> arg3 = New refcounted<dsdc_put3_arg_t>();
         arg3->key = k;
-        annotation_t::to_xdr (a, &arg3->annotation);
-        res = put2_helper (arg3, obj, cb);
+        annotation_t::to_xdr(a, &arg3->annotation);
+        res = put2_helper(arg3, obj, cb);
     } else {
         // Use compatibility layer if not using annotations
-        ptr<dsdc_put_arg_t> arg = New refcounted<dsdc_put_arg_t> ();
+        ptr<dsdc_put_arg_t> arg = New refcounted<dsdc_put_arg_t>();
         arg->key = k;
-        res = put2_helper (arg, obj, cb);
+        res = put2_helper(arg, obj, cb);
     }
 
     if (res != DSDC_OK)
@@ -680,140 +767,171 @@ dsdc_smartcli_t::put2 (const dsdc_key_t &k, const T &obj,
 //-----------------------------------------------------------------------
 // even lazier!
 //
-template<class K, class V> void
-dsdc_smartcli_t::get3 (const K &k,
-                       typename callback<void, dsdc_res_t, ptr<V> >::ref cb,
-                       bool safe, int time_to_expire,
-                       const annotation_t *a,
-                       dsdc_cksum_t *out)
-{
-    get2<V> (mkkey_ptr (k), cb, safe, time_to_expire, a, out);
+template <class K, class V>
+void
+dsdc_smartcli_t::get3(
+    const K& k,
+    typename callback<void, dsdc_res_t, ptr<V>>::ref cb,
+    bool safe,
+    int time_to_expire,
+    const annotation_t* a,
+    dsdc_cksum_t* out) {
+    get2<V>(mkkey_ptr(k), cb, safe, time_to_expire, a, out);
 }
 
-template<class K> str
-dsdc_smartcli_t::which_slave3 (const K &k)
-{
+template <class K>
+str
+dsdc_smartcli_t::which_slave3(const K& k) {
     dsdc_key_t dk;
-    mkkey (&dk, k);
-    return which_slave (dk);
+    mkkey(&dk, k);
+    return which_slave(dk);
 }
 
-template<class K, class V> void
-dsdc_smartcli_t::put3 (const K &k, const V &obj, cbi::ptr cb, bool safe,
-                       const annotation_t *a,
-                       const dsdc_cksum_t *cksm)
-{
-    put2 (mkkey (k), obj, cb, safe, a, cksm);
+template <class K, class V>
+void
+dsdc_smartcli_t::put3(
+    const K& k,
+    const V& obj,
+    cbi::ptr cb,
+    bool safe,
+    const annotation_t* a,
+    const dsdc_cksum_t* cksm) {
+    put2(mkkey(k), obj, cb, safe, a, cksm);
 }
 
-template<class K> void
-dsdc_smartcli_t::remove3 (const K &k, cbi::ptr cb, bool safe,
-                          const annotation_t *a)
-{
+template <class K>
+void
+dsdc_smartcli_t::remove3(
+    const K& k, cbi::ptr cb, bool safe, const annotation_t* a) {
     if (!a) {
-        remove (mkkey_ptr (k), cb, safe);
+        remove(mkkey_ptr(k), cb, safe);
     } else {
-        ptr<dsdc_remove3_arg_t> arg = New refcounted<dsdc_remove3_arg_t> ();
-        mkkey (&arg->key, k);
-        a->to_xdr (&arg->annotation);
-        remove (arg, cb, safe);
+        ptr<dsdc_remove3_arg_t> arg = New refcounted<dsdc_remove3_arg_t>();
+        mkkey(&arg->key, k);
+        a->to_xdr(&arg->annotation);
+        remove(arg, cb, safe);
     }
 }
 
-template<class K> void
-dsdc_smartcli_t::lock_release3 (const K &k, dsdcl_id_t id, cbi::ptr cb,
-                                bool safe)
-{
+template <class K>
+void
+dsdc_smartcli_t::lock_release3(
+    const K& k, dsdcl_id_t id, cbi::ptr cb, bool safe) {
     ptr<dsdc_lock_release_arg_t> arg =
-        New refcounted<dsdc_lock_release_arg_t> ();
-    mkkey<K> (&arg->key, k);
+        New refcounted<dsdc_lock_release_arg_t>();
+    mkkey<K>(&arg->key, k);
     arg->lockid = id;
-    lock_release (arg, cb, safe);
+    lock_release(arg, cb, safe);
 }
 
-template<class K> void
-dsdc_smartcli_t::lock_acquire3 (const K &k, dsdc_lock_acquire_res_cb_t cb,
-                                u_int timeout, bool writer, bool block,
-                                bool safe)
-{
+template <class K>
+void
+dsdc_smartcli_t::lock_acquire3(
+    const K& k,
+    dsdc_lock_acquire_res_cb_t cb,
+    u_int timeout,
+    bool writer,
+    bool block,
+    bool safe) {
     ptr<dsdc_lock_acquire_arg_t> arg =
-        New refcounted<dsdc_lock_acquire_arg_t> ();
-    mkkey<K> (&arg->key, k);
+        New refcounted<dsdc_lock_acquire_arg_t>();
+    mkkey<K>(&arg->key, k);
     arg->writer = writer;
     arg->block = block;
     arg->timeout = timeout;
-    lock_acquire (arg, cb, safe);
+    lock_acquire(arg, cb, safe);
 }
 
-template<class K, class V> str
-dsdc_iface_t<K,V>::which_slave (const K &k)
+template <class K, class V>
+str
+dsdc_iface_t<K, V>::which_slave(const K& k) {
+    return _cli->template which_slave3<K>(k);
+}
+
+template <class K, class V>
+void
+dsdc_iface_t<K, V>::get(
+    const K& k,
+    typename callback<void, dsdc_res_t, ptr<V>>::ref cb,
+    bool safe,
+    const annotation_t* a,
+    dsdc_cksum_t* cksum)
+
 {
-    return _cli->template which_slave3<K> (k);
+    _cli->template get3<K, V>(k, cb, safe, time_to_expire, a, cksum);
 }
 
-template<class K, class V> void
-dsdc_iface_t<K,V>::get (const K &k,
-                        typename callback<void, dsdc_res_t, ptr<V> >::ref cb,
-                        bool safe,
-                        const annotation_t *a,
-                        dsdc_cksum_t *cksum)
-			
-{ _cli->template get3<K,V> (k, cb, safe, time_to_expire, a, cksum); }
-
-template<class K, class V> void
-dsdc_iface_t<K,V>::put (const K &k, const V &obj, cbi::ptr cb, bool safe,
-                        const annotation_t *a, const dsdc_cksum_t *cks)
-{ _cli->put3 (k, obj, cb, safe, a, cks); }
-
-template<class K, class V> void
-dsdc_iface_t<K,V>::remove (const K &k, cbi::ptr cb, bool safe,
-                           const annotation_t *a)
-{ _cli->remove3 (k, cb, safe, a); }
-
-template<class K, class V> void
-dsdc_iface_t<K,V>::lock_acquire (const K &k, dsdc_lock_acquire_res_cb_t cb,
-                                 u_int timeout, bool writer, bool block,
-                                 bool safe)
-{ _cli->lock_acquire3 (k, cb, timeout, writer, block, safe); }
-
-template<class K, class V> void
-dsdc_iface_t<K,V>::lock_release (const K &k, dsdcl_id_t id,
-                                 cbi::ptr cb, bool safe)
-{
-    _cli->lock_release3 (k, id, cb, safe);
+template <class K, class V>
+void
+dsdc_iface_t<K, V>::put(
+    const K& k,
+    const V& obj,
+    cbi::ptr cb,
+    bool safe,
+    const annotation_t* a,
+    const dsdc_cksum_t* cks) {
+    _cli->put3(k, obj, cb, safe, a, cks);
 }
 
+template <class K, class V>
+void
+dsdc_iface_t<K, V>::remove(
+    const K& k, cbi::ptr cb, bool safe, const annotation_t* a) {
+    _cli->remove3(k, cb, safe, a);
+}
+
+template <class K, class V>
+void
+dsdc_iface_t<K, V>::lock_acquire(
+    const K& k,
+    dsdc_lock_acquire_res_cb_t cb,
+    u_int timeout,
+    bool writer,
+    bool block,
+    bool safe) {
+    _cli->lock_acquire3(k, cb, timeout, writer, block, safe);
+}
+
+template <class K, class V>
+void
+dsdc_iface_t<K, V>::lock_release(
+    const K& k, dsdcl_id_t id, cbi::ptr cb, bool safe) {
+    _cli->lock_release3(k, id, cb, safe);
+}
 
 //
 //-----------------------------------------------------------------------
 
-
-//-----------------------------------------------------------------------   
+//-----------------------------------------------------------------------
 // get2
 //
 
-template<class T>
+template <class T>
 class get2_tame_helper {
-public:
-    get2_tame_helper () {}
-    void fn (dsdc_smartcli_t *cli,
-               ptr<dsdc_key_t> k,
-               typename callback<void, dsdc_res_t, ptr<T> >::ref cb,
-               bool safe = false, int time_to_expire= -1,
-               const annotation_t *a = NULL,
-               dsdc_cksum_t *cksum = NULL,
-               CLOSURE);
+  public:
+    get2_tame_helper() {}
+    void
+    fn(dsdc_smartcli_t* cli,
+       ptr<dsdc_key_t> k,
+       typename callback<void, dsdc_res_t, ptr<T>>::ref cb,
+       bool safe = false,
+       int time_to_expire = -1,
+       const annotation_t* a = NULL,
+       dsdc_cksum_t* cksum = NULL,
+       CLOSURE);
 };
 
-template<class T> void 
-dsdc_smartcli_t::get2 (ptr<dsdc_key_t> k,
-                       typename callback<void, dsdc_res_t, ptr<T> >::ref cb,
-                       bool safe, int time_to_expire,
-                       const annotation_t *a,
-                       dsdc_cksum_t *cksum)
-{
+template <class T>
+void
+dsdc_smartcli_t::get2(
+    ptr<dsdc_key_t> k,
+    typename callback<void, dsdc_res_t, ptr<T>>::ref cb,
+    bool safe,
+    int time_to_expire,
+    const annotation_t* a,
+    dsdc_cksum_t* cksum) {
     get2_tame_helper<T> th;
-    th.fn (this, k, cb, safe, time_to_expire, a, cksum);
+    th.fn(this, k, cb, safe, time_to_expire, a, cksum);
 }
 
 //
